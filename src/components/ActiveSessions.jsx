@@ -5,6 +5,37 @@ import React from 'react'
  * 显示当前连接的用户/代理会话信息
  */
 export default function ActiveSessions({ sessions, loading }) {
+  // 会话过滤器状态
+  const [filter, setFilter] = React.useState('all') // all, online, recent
+  const [showCreatedTime, setShowCreatedTime] = React.useState(false)
+
+  // 格式化日期时间函数
+  function formatDate(date) {
+    const now = new Date()
+    const diff = now - date
+    
+    if (diff < 60000) {
+      return '刚刚'
+    }
+    if (diff < 3600000) {
+      const minutes = Math.floor(diff / 60000)
+      return `${minutes}分钟前`
+    }
+    if (diff < 86400000) {
+      const hours = Math.floor(diff / 3600000)
+      return `${hours}小时前`
+    }
+    if (diff < 604800000) {
+      const days = Math.floor(diff / 86400000)
+      return `${days}天前`
+    }
+    return date.toLocaleDateString('zh-CN', {
+      month: '2-digit',
+      day: '2-digit',
+      year: 'numeric',
+    })
+  }
+
   // 如果没有会话数据，显示占位
   if (!sessions || sessions.sessionsCount === 0) {
     return (
@@ -84,10 +115,67 @@ export default function ActiveSessions({ sessions, loading }) {
         )}
       </div>
 
+      {/* 过滤器 */}
+      <div className="bg-gray-50 rounded-lg p-3 mb-4 border border-gray-200">
+        <div className="flex items-center space-x-3">
+          {/* 状态过滤器 */}
+          <div className="flex items-center space-x-2">
+            <span className="text-sm text-gray-600">状态:</span>
+            <select
+              className="text-sm border border-gray-300 rounded-lg px-3 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              value={filter}
+              onChange={(e) => setFilter(e.target.value)}
+            >
+              <option value="all">全部</option>
+              <option value="online">在线</option>
+              <option value="recent">最近</option>
+            </select>
+          </div>
+          
+          {/* 显示创建时间切换 */}
+          <label className="flex items-center space-x-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={showCreatedTime}
+              onChange={(e) => setShowCreatedTime(e.target.value)}
+              className="rounded text-blue-600 focus:ring-2 focus:ring-blue-500"
+            />
+            <span className="text-sm text-gray-600">显示创建时间</span>
+          </label>
+        </div>
+        
+        {/* 过滤器说明 */}
+        <div className="mt-2 pt-2 border-t border-gray-200">
+          <p className="text-xs text-gray-500">
+            {filter === 'online' && '筛选在线会话（1 小时内活跃）'}
+            {filter === 'recent' && '筛选最近会话（24 小时内活跃）'}
+            {filter === 'all' && '显示所有会话'}
+          </p>
+        </div>
+      </div>
+
       {/* 会话列表 */}
       <div className="space-y-2">
-        {sessions.sessions.map((session, index) => (
-          <SessionCard key={index} session={session} />
+        {sessions.sessions
+          .filter((session) => {
+            // 状态过滤
+            if (filter === 'all') return true
+            if (filter === 'online') {
+              const lastActive = new Date(session.last_active_at || Date.now())
+              const now = new Date()
+              const diffHours = (now - lastActive) / (1000 * 60 * 60)
+              return diffHours < 1
+            }
+            if (filter === 'recent') {
+              const lastActive = new Date(session.last_active_at || Date.now())
+              const now = new Date()
+              const diffHours = (now - lastActive) / (1000 * 60 * 60)
+              return diffHours < 24
+            }
+            return true
+          })
+          .map((session, index) => (
+          <SessionCard key={index} session={session} showCreatedTime={showCreatedTime} />
         ))}
       </div>
 
@@ -104,44 +192,66 @@ export default function ActiveSessions({ sessions, loading }) {
 /**
  * 会话卡片组件
  */
-function SessionCard({ session }) {
+function SessionCard({ session, showCreatedTime = false }) {
   const createdAt = new Date(session.created_at || Date.now())
   const lastActive = new Date(session.last_active_at || Date.now())
+  
+  // 根据最后活跃时间判断状态
+  const diffHours = (Date.now() - lastActive) / (1000 * 60 * 60)
+  const isOnline = diffHours < 1
   
   return (
     <div className="bg-gray-50 rounded-lg p-4 border border-gray-200 hover:border-blue-300 transition-colors">
       <div className="flex items-start justify-between">
         <div className="flex-1">
           <div className="flex items-center space-x-2 mb-2">
-            <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+            <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+              isOnline ? 'bg-green-100' : 'bg-blue-100'
+            }`}>
               <span className="text-sm text-blue-600">🔹</span>
             </div>
             <div>
               <p className="text-sm font-medium text-gray-800">
                 会话 ID: {session.id || 'N/A'}
               </p>
-              <p className="text-xs text-gray-500">
-                创建时间：{formatDate(createdAt)}
-              </p>
+              {showCreatedTime && (
+                <p className="text-xs text-gray-500">
+                  创建时间：{formatDate(createdAt)}
+                </p>
+              )}
             </div>
           </div>
           
           {/* 最后活跃时间 */}
           <div className="flex items-center space-x-2 mt-2">
-            <div className="w-6 h-6 bg-green-100 rounded-full flex items-center justify-center">
-              <span className="text-xs text-green-600">🕐</span>
+            <div className={`w-6 h-6 rounded-full flex items-center justify-center ${
+              isOnline ? 'bg-green-100' : 'bg-blue-100'
+            }`}>
+              <span className={`text-xs ${
+                isOnline ? 'text-green-600' : 'text-blue-600'
+              }`}>
+                {isOnline ? '🕐' : '🕐'}
+              </span>
             </div>
             <p className="text-xs text-gray-600">
               最后活跃：{formatDate(lastActive)}
-              <span className="text-green-600 font-medium"> (在线)</span>
+              <span className={`${isOnline ? 'text-green-600' : 'text-blue-600'} font-medium`}>
+                {isOnline ? ' (在线)' : ' (离线)'}
+              </span>
             </p>
           </div>
         </div>
         
         {/* 会话状态指示器 */}
         <div className="flex items-center space-x-2">
-          <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
-          <span className="text-xs text-green-600">活跃</span>
+          <div className={`w-3 h-3 rounded-full ${
+            isOnline ? 'bg-green-500' : 'bg-gray-400'
+          }`} />
+          <span className={`text-xs ${
+            isOnline ? 'text-green-600' : 'text-gray-600'
+          }`}>
+            {isOnline ? '活跃' : '离线'}
+          </span>
         </div>
       </div>
     </div>

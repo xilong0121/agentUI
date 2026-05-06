@@ -3,7 +3,6 @@ import React, { useState, useEffect } from 'react'
 /**
  * 任务队列状态组件
  * 展示待处理、正在处理、已完成的消息数量
- * 由于 API 可能不提供此信息，使用模拟数据和状态推算
  */
 export default function TaskQueue({ models, loading }) {
   // 任务状态
@@ -13,7 +12,7 @@ export default function TaskQueue({ models, loading }) {
     completed: 0,
     failed: 0,
   })
-
+  
   // 模拟任务数据生成
   useEffect(() => {
     if (loading) return
@@ -32,12 +31,18 @@ export default function TaskQueue({ models, loading }) {
 
   /**
    * 生成模拟任务数据
+   * 根据模型状态和数量生成合理的任务分布
    */
   function generateMockTasks(models) {
     // 根据模型数量生成合理的任务数量
     const basePending = models.length > 0 ? Math.floor(Math.random() * 5) : 0
     const baseProcessing = Math.floor(Math.random() * 2)
     const baseCompleted = Math.floor(Math.random() * 10)
+    
+    // 如果模型已加载，增加一些任务
+    if (models.length > 0 && models[0]?.status === 'loaded') {
+      baseCompleted += Math.floor(Math.random() * 3)
+    }
     
     setTasks({
       pending: basePending,
@@ -89,6 +94,38 @@ export default function TaskQueue({ models, loading }) {
         />
       </div>
 
+      {/* 模型状态切换 */}
+      {models && models.length > 0 && (
+        <div className="bg-blue-50 rounded-lg p-3 mb-4 border border-blue-200">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <span className="text-sm font-medium text-blue-800">当前模型:</span>
+              <div className="flex items-center space-x-2">
+                {models.map((model, index) => (
+                  <button
+                    key={index}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                      model === models[0] 
+                        ? 'bg-blue-600 text-white' 
+                        : 'bg-blue-100 text-blue-700 hover:bg-blue-200'
+                    }`}
+                    onClick={() => {
+                      console.log(`切换到模型：${model.id || index}`)
+                      // 这里可以添加实际的模型切换逻辑
+                    }}
+                  >
+                    {model.id || `模型 ${index + 1}`}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <span className="text-xs text-blue-600">
+              模型状态：{models[0]?.status === 'loaded' ? '已加载' : models[0]?.status || '加载中'}
+            </span>
+          </div>
+        </div>
+      )}
+
       {/* 任务详情 */}
       <div className="mt-4 pt-4 border-t border-gray-100">
         <h4 className="text-sm font-medium text-gray-700 mb-2">队列统计</h4>
@@ -109,6 +146,13 @@ export default function TaskQueue({ models, loading }) {
           </div>
           <p className="text-xs text-gray-500 mt-2 text-right">
             当前处理进度
+          </p>
+        </div>
+        
+        {/* 任务来源说明 */}
+        <div className="mt-3 p-3 bg-yellow-50 rounded-lg border border-yellow-200">
+          <p className="text-xs text-yellow-800">
+            💡 <strong>提示:</strong> 当前任务数据为模拟数据。如需对接真实 API，请更新后端任务队列接口。
           </p>
         </div>
       </div>
