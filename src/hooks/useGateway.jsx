@@ -56,7 +56,10 @@ export function useGateway(enabled = true, interval = 5000) {
       
       // 更新日志
       if (logsData.status === 'fulfilled') {
-        setLogs(logsData.value.logs || [])
+        // 处理不同的响应格式
+        const logsDataValue = logsData.value
+        const logs = logsDataValue.logs || logsDataValue || []
+        setLogs(logs)
       }
       
     } catch (error) {
@@ -84,9 +87,21 @@ export function useGateway(enabled = true, interval = 5000) {
       return null
     }
     
-    // 返回第一个已加载的模型
-    const loadedModel = models.models.find(m => m.status === 'not_loaded') || models.models[0]
-    return loadedModel
+    // 检查是否有 note 字段（表示接口未开放）
+    if (models.note) {
+      console.info('[getCurrentModel] 接口未开放:', models.note)
+      return null
+    }
+    
+    // 返回第一个模型（无论状态）
+    const firstModel = models.models[0]
+    
+    // 如果没有模型数据，返回 null
+    if (!firstModel) {
+      return null
+    }
+    
+    return firstModel
   }, [models])
 
   // 获取状态颜色
