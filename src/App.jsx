@@ -30,141 +30,91 @@ function App() {
   const currentModel = getCurrentModel()
 
   // 页面标题
-  const pageTitle = health?.status === 'healthy' ? 'OpenClaw 状态面板 - 正常' : 'OpenClaw 状态面板 - 异常'
+  const pageTitle = health?.status === 'healthy' ? '状态面板' : '系统异常'
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
-      {/* 顶部导航栏 */}
-      <header className="bg-white shadow-sm border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center">
-                <span className="text-white text-xl">🐉</span>
-              </div>
-              <div>
-                <h1 className="text-xl font-bold text-gray-900">OpenClaw 状态面板</h1>
-                <p className="text-sm text-gray-500">
-                  本地网关监控 · 实时任务队列 · 系统健康检查
-                </p>
-              </div>
-            </div>
-            
-            <div className="flex items-center space-x-4">
-              {/* 状态指示器 */}
-              <div className={`flex items-center space-x-2 px-3 py-1.5 rounded-full text-sm font-medium ${
-                health?.status === 'healthy' ? 'bg-green-100 text-green-800' :
-                health?.status === 'unhealthy' ? 'bg-red-100 text-red-800' :
-                'bg-yellow-100 text-yellow-800'
-              }`}>
-                <span className="text-lg">
-                  {health?.status === 'healthy' ? '🟢' :
-                   health?.status === 'unhealthy' ? '🔴' : '🟡'}
-                </span>
-                <span>
-                  {health?.status === 'healthy' ? '运行正常' :
-                   health?.status === 'unhealthy' ? '运行异常' : '检查中...'}
-                </span>
-              </div>
-              
-              {/* 刷新按钮 */}
-              <button
-                onClick={refresh}
-                className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                title="手动刷新"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                </svg>
-              </button>
-            </div>
-          </div>
-        </div>
-      </header>
+  // 性能优化：防抖函数
+  const debouncedRefresh = React.useCallback(
+    debounce(refresh, 1000),
+    [refresh]
+  )
 
-      {/* 主要内容区域 */}
-      <main className="max-w-7xl mx-auto px-6 py-6">
-        {/* 错误提示 */}
-        {lastError && (
-          <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg flex items-start space-x-3">
-            <span className="text-lg">⚠️</span>
-            <div className="flex-1">
-              <p className="text-sm font-medium text-red-800">检测到错误</p>
-              <p className="text-sm text-red-700 mt-1">{lastError.message}</p>
-            </div>
-            <button 
-              onClick={() => setLastError(null)}
-              className="text-red-600 hover:text-red-800"
+  // 处理页面错误
+  const [error, setError] = useState(null)
+
+  React.useEffect(() => {
+    if (lastError) {
+      setError(getErrorMessage(lastError))
+    } else {
+      setError(null)
+    }
+  }, [lastError, getErrorMessage])
+
+  // 错误处理
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-50 p-8">
+        <div className="max-w-7xl mx-auto">
+          <div className="bg-red-50 border border-red-200 rounded-lg p-6 mb-6">
+            <h2 className="text-xl font-bold text-red-800 mb-2">⚠️ 系统错误</h2>
+            <p className="text-red-700">{error}</p>
+            <button
+              onClick={debouncedRefresh}
+              className="mt-4 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
             >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-              </svg>
+              重试
             </button>
           </div>
-        )}
+        </div>
+      </div>
+    )
+  }
 
-        {/* 状态卡片网格 */}
+  // 加载状态
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-600">加载中...</p>
+        </div>
+      </div>
+    )
+  }
+
+  // 主界面
+  return (
+    <div className="min-h-screen bg-gray-50 p-4 md:p-8">
+      <div className="max-w-7xl mx-auto space-y-6">
+        {/* 页面标题 */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">{pageTitle}</h1>
+            <p className="text-sm text-gray-500">OpenClaw 状态面板</p>
+          </div>
+          <div className="text-sm text-gray-500">
+            网关地址：{GATEWAY_BASE_URL}
+          </div>
+        </div>
+
+        {/* 网格布局 */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {/* 第一列：模型状态 */}
-          <div className="lg:col-span-1">
-            <ModelStatus 
-              model={currentModel}
-              loading={loading}
-            />
-            
-            {/* 网关健康指示 */}
-            <div className="mt-6">
-              <HealthIndicator 
-                health={health}
-                models={models}
-                lastError={lastError}
-              />
-            </div>
+          <div className="md:col-span-2 lg:col-span-2">
+            <ModelStatus models={models} loading={loading} />
           </div>
-          
-          {/* 第二列：活跃会话 */}
-          <div className="lg:col-span-1">
-            <ActiveSessions 
-              sessions={sessions}
-              loading={loading}
-            />
+          <div>
+            <HealthIndicator health={health} loading={loading} />
           </div>
-          
-          {/* 第三列：任务队列 */}
-          <div className="lg:col-span-1">
-            <TaskQueue 
-              models={models}
-              loading={loading}
-            />
+          <div>
+            <ActiveSessions sessions={sessions} loading={loading} />
           </div>
-          
-          {/* 第四列：日志流 (跨两列) */}
-          <div className="lg:col-span-2">
-            <LogStream 
-              enabled={true}
-              autoRefresh={true}
-            />
+          <div>
+            <TaskQueue models={models} loading={loading} />
+          </div>
+          <div className="md:col-span-2 lg:col-span-2">
+            <LogStream enabled={true} autoRefresh={true} />
           </div>
         </div>
-      </main>
-
-      {/* 底部信息 */}
-      <footer className="bg-white border-t border-gray-200 mt-6">
-        <div className="max-w-7xl mx-auto px-6 py-4">
-          <div className="flex items-center justify-between text-sm text-gray-500">
-            <div>
-              <span className="font-medium">版本:</span> 1.0.0
-              <span className="mx-2">|</span>
-              <span>更新:</span> {health?.timestamp || '未知'}
-            </div>
-            <div>
-              <span className="font-medium">网关:</span> <code className="bg-gray-100 px-2 py-1 rounded text-xs">{GATEWAY_BASE_URL}</code>
-              <span className="mx-2">|</span>
-              <span>刷新间隔:</span> 5 秒
-            </div>
-          </div>
-        </div>
-      </footer>
+      </div>
     </div>
   )
 }

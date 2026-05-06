@@ -10,6 +10,7 @@ export default function LogStream({ enabled = true, autoRefresh = true }) {
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState('all') // all, error, warn, info
   const [maxLines, setMaxLines] = useState(20)
+  const [timeRange, setTimeRange] = useState('all') // all, 1h, 24h, 7d
 
   /**
    * 获取日志
@@ -21,21 +22,40 @@ export default function LogStream({ enabled = true, autoRefresh = true }) {
       const data = await getLogs()
       
       if (data.success && data.logs) {
-        // 过滤日志级别
         let filteredLogs = data.logs
         
+        // 时间范围过滤
+        if (timeRange !== 'all') {
+          const now = new Date()
+          const cutoffTime = new Date()
+          
+          if (timeRange === '1h') {
+            cutoffTime.setHours(now.getHours() - 1)
+          } else if (timeRange === '24h') {
+            cutoffTime.setHours(now.getHours() - 24)
+          } else if (timeRange === '7d') {
+            cutoffTime.setDate(now.getDate() - 7)
+          }
+          
+          filteredLogs = filteredLogs.filter(log => {
+            const logTime = new Date(log.timestamp)
+            return logTime >= cutoffTime
+          })
+        }
+        
+        // 过滤日志级别
         if (filter === 'error') {
-          filteredLogs = data.logs.filter(log => 
+          filteredLogs = filteredLogs.filter(log => 
             log.level?.toLowerCase().includes('error') ||
             log.message?.toLowerCase().includes('error')
           )
         } else if (filter === 'warn') {
-          filteredLogs = data.logs.filter(log => 
+          filteredLogs = filteredLogs.filter(log => 
             log.level?.toLowerCase().includes('warn') ||
             log.message?.toLowerCase().includes('warn')
           )
         } else if (filter === 'info') {
-          filteredLogs = data.logs.filter(log => 
+          filteredLogs = filteredLogs.filter(log => 
             log.level?.toLowerCase().includes('info')
           )
         }
@@ -106,6 +126,22 @@ export default function LogStream({ enabled = true, autoRefresh = true }) {
         
         {/* 过滤器 */}
         <div className="flex items-center space-x-2">
+          {/* 时间范围选择 */}
+          <div className="flex items-center space-x-2">
+            <span className="text-sm text-gray-600">时间:</span>
+            <select 
+              className="text-sm border border-gray-300 rounded-lg px-3 py-1 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              value={timeRange}
+              onChange={(e) => setTimeRange(e.target.value)}
+            >
+              <option value="all">全部时间</option>
+              <option value="1h">最近 1 小时</option>
+              <option value="24h">最近 24 小时</option>
+              <option value="7d">最近 7 天</option>
+            </select>
+          </div>
+          
+          {/* 日志级别过滤器 */}
           <select 
             className="text-sm border border-gray-300 rounded-lg px-3 py-1 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
             value={filter}
